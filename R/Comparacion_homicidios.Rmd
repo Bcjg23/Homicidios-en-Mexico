@@ -1,0 +1,152 @@
+---
+title: "Comparación de datos de Homicidios en México"
+author: "Brenda Jiménez"
+date: "6/2/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+Comparamos el total de homicidios en 2017 para:
+
+   - Homicidios de INEGI
+   - Defunciones de Secretaría de Salud
+        
+```{r, message=FALSE, warning=FALSE}
+#Working directory
+setwd('~/Documents/Xaber_ODP/DB/Homicidios/')
+#setwd("C:/Users/Brenda Jimenez/Documents/Xaber&ODP/DB/Homicidios")
+
+library(ggplot2)   #make graphs
+library(dplyr)     #manipulate data
+library(tidyverse) #manipulate data
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+```
+
+### 1. Base INEGI
+
+Se consideran las estadísticas de las **Defunciones generales** del sitio oficial del [INEGI](https://www.inegi.org.mx/programas/mortalidad/default.html?ps=microdatos#Microdatos). La información esta disponible desde 1990 a 2018.
+
+
+```{r, message=FALSE, warning=FALSE}
+#Cargamos la base de homicidios de INEGI 
+inegi_homicidios <- read_csv('INEGI_Defunciones/inegi_homicidios_1990-2018.csv') 
+```
+
+Graficamos el número de homicidios por año de registro (*ANIO_REGIS*) y por año de ocurrencia (*ANIO_OCUR*). 
+
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+#inegi_homicidios_by_year <- inegi_homicidios %>% group_by(ANIO_OCUR) %>% summarise(num_hom = n())
+  
+inegi_homicidios_by_year_ocur <- transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 90, 1990, ANIO_OCUR)) %>% transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 91, 1991, ANIO_OCUR)) %>% transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 92, 1992, ANIO_OCUR)) %>% transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 93, 1993, ANIO_OCUR)) %>% transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 94, 1994, ANIO_OCUR)) %>% transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 95, 1995, ANIO_OCUR)) %>% transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 96, 1996, ANIO_OCUR)) %>% transform(inegi_homicidios, ANIO_OCUR = ifelse(ANIO_OCUR == 97, 1997, ANIO_OCUR))  %>% group_by(ANIO_OCUR) %>% summarise(num_hom = n()) %>% filter(ANIO_OCUR>=1990 & ANIO_OCUR<=2018) %>% as.data.frame()
+colnames(inegi_homicidios_by_year_ocur) <- c("Ano", "num_hom")
+
+inegi_homicidios_by_year_regis <- as.data.frame(table(inegi_homicidios$ANIO_REGIS))
+colnames(inegi_homicidios_by_year_regis) <- c("Ano", "num_hom")
+inegi_homicidios_by_year_regis$Ano <- 1990:2018
+
+inegi_homicidios_all <- inegi_homicidios_by_year_ocur %>% mutate(Tipo = 'Por año de ocurrencia') %>% bind_rows(inegi_homicidios_by_year_regis %>% mutate(Tipo = 'Por año de registro'))
+
+ggplot(inegi_homicidios_all, aes(y=num_hom, x=Ano, color=Tipo)) + geom_line() + geom_point() + ggtitle('Homicidios INEGI') + scale_x_continuous(breaks = seq(1990,2020,2)) + scale_y_continuous(breaks = seq(5000, 35000, 5000))
+
+#ggplot() + geom_line(data = inegi_homicidios_by_year_ocur, mapping = aes(x=ANIO_OCUR, y=num_hom), color = "blue") + geom_line(data = inegi_homicidios_by_year_regis, mapping = aes(x=Ano, y=Homicidios), color = 'red') + geom_point() + xlab('Año') + ylab('Homicidios')
+```
+*Los datos de año de ocurencia de 2 cifras se agruparon con los de 4 cifras para el periodo 1990-1997. Por ejemplo el 90 con el 1990, el 91 con el 1992 y así sucesivamente. 
+
+```{r}
+inegi_table <- data.frame(inegi_homicidios_by_year_ocur, inegi_homicidios_by_year_regis$num_hom)
+
+#kable(inegi_table, 'html', align = c('r'), col.names = c('Año', 'De Ocurrencia', 'De Registro')) %>% kable_styling('striped',full_width = F, position = 'center') %>% add_header_above(c(" " = 1, 'Homicidios INEGI' = 2))
+
+```
+
+
+### 2. Base de Defunciones de la Secretaría de Salud
+
+Los datos de defunciones están disponibles desde 2000 a 2017. 
+
+Los datos fueron tomados de la página de [datos abiertos](https://datos.gob.mx/busca/dataset/defunciones). También disponible en la [DGIS](http://www.dgis.salud.gob.mx/contenidos/basesdedatos/std_defunciones_gobmx.html) desde 1998.
+
+La fuente de información para esta base es la Secretaría de Salud/Subsecretaría de Integración y Desarrollo del Sector Salud/Dirección de Información en Salud *con base en la información oficial de defunciones INEGI/SS 1979-2017*. [Link](http://sinaiscap.salud.gob.mx:8080/DGIS/)
+
+```{r, message=FALSE, warning=FALSE}
+#Cargamos la base de homicidios de la Secretaria de Salud 
+ss_homicidios <- read_csv('SS_Defunciones/ss_homicidios_2000-2017.csv')
+```
+Nuevamente graficamos el número de homicidios por año de registro (*ANIO_REGIS*) y por año de ocurrencia (*ANIO_OCUR*). 
+
+```{r, message=FALSE, warning=FALSE, fig.align='center'}
+
+ss_homicidios_by_year_ocur <- ss_homicidios %>% group_by(anio_ocur) %>% summarise(num_hom = n()) %>% filter(anio_ocur>=2000 & anio_ocur<=2018) %>% as.data.frame()
+colnames(ss_homicidios_by_year_ocur) <- c("Ano", "num_hom")
+
+ss_homicidios_by_year_regis <- as.data.frame(table(ss_homicidios$anio_regis))
+colnames(ss_homicidios_by_year_regis) <- c("Ano", "num_hom")
+
+ss_homicidios_all <- ss_homicidios_by_year_ocur %>% mutate(Tipo = 'Por año de ocurrencia') %>% rbind(ss_homicidios_by_year_regis %>% mutate(Tipo = 'Por año de registro'))
+ss_homicidios_all$Ano <- as.numeric(ss_homicidios_all$Ano)
+
+ggplot(ss_homicidios_all, aes(y=num_hom, x=Ano, color=Tipo)) + geom_line() + geom_point() + ggtitle('Homicidios Secretaria de Salud') + scale_x_continuous(breaks = seq(2000,2020,2)) + scale_y_continuous(breaks = seq(5000, 35000, 5000))
+```
+
+```{r}
+ss_table <- data.frame(ss_homicidios_by_year_ocur, ss_homicidios_by_year_regis$num_hom)
+```
+
+
+### 3. Comparativo: INEGI vs SS
+
+Comparamos las bases de homicidio de INEGI y de la Secretaria de Salud.
+
+```{r out.width='100%', fig.align='center'}
+#Homicidios por ano de ocurrencia (INEGI vs SS)
+homicidios_occ <- inegi_homicidios_by_year_ocur %>% filter(Ano>=2000 & Ano<=2017) %>% mutate(Tipo = 'inegi') %>% bind_rows(ss_homicidios_by_year_ocur %>% mutate(Tipo = 'SS'))
+
+p1 <- ggplot(homicidios_occ, aes(y=num_hom, x=Ano, color=Tipo)) + geom_line() + geom_point() + ggtitle('Homicidios por anio de ocurrencia') + scale_x_continuous(breaks = seq(2000,2020,2)) + scale_y_continuous(breaks = seq(5000, 35000, 5000))
+
+#Homicidios por ano de registro (INEGI vs SS)
+homicidios_regis <- inegi_homicidios_by_year_regis %>% filter(Ano>=2000 & Ano<=2017) %>% mutate(Tipo = 'inegi') %>% rbind(ss_homicidios_by_year_regis %>% mutate(Tipo = 'SS')) %>% as.data.frame()
+homicidios_regis$Ano <- as.numeric(homicidios_regis$Ano)
+
+p2 <- ggplot(homicidios_regis, aes(y=num_hom, x=Ano, color=Tipo)) + geom_line() + geom_point() + ggtitle('Homicidios por anio de registro') + scale_x_continuous(breaks = seq(2000,2020,2)) + scale_y_continuous(breaks = seq(5000, 35000, 5000))
+
+grid.arrange(p1, p2, nrow=2)
+
+```
+Podemos ver el total de homicidios por ano en el periodo 2000-2017 para ambas fuentes
+```{r}
+homicidios_all <- cbind(inegi_table[11:28,1:2], ss_table$num_hom, inegi_table[11:28,3], ss_table$ss_homicidios_by_year_regis.num_hom)
+
+kable(homicidios_all, 'html', align = c('r'), col.names = c('Año', 'INEGI', 'SS', 'INEGI', 'SS'), row.names = F) %>% kable_styling(c('striped', 'condensed'),full_width = F, position = 'center') %>% add_header_above(c(" " = 1, 'Por año de ocurrencia' = 2, 'Por año de registro' = 2))
+```
+
+
+
+```{r, message=FALSE, warning=FALSE, results='asis', results='hide'}
+#Comparacion de registros ano por ano
+
+info_files_inegi <- read_csv('~/Documents/Xaber_ODP/DB/Homicidios/info_files_inegi.csv')
+
+info_files_ss <- read_csv('~/Documents/Xaber_ODP/DB/Homicidios/info_files_ss.csv')
+info_files_ss[,1] <- 2000:2017
+
+info_files <- data.frame(info_files_ss, info_files_inegi[11:28,2:3])
+
+kable(info_files, 'html', align = c('r'), col.names = c('Año', 'Obs.', 'Vars.', 'Obs.', 'Vars.')) %>% kable_styling('striped',full_width = F, position = 'center') %>% add_header_above(c(" " = 1, 'Homicidios SS' = 2, 'Homicidios INEGI' = 2))
+
+```
+
+
+```{r}
+#Catalogo de Localidades
+#loc_occ <- read.dbf("INEGI_Defunciones/defunciones_base_datos_2017/CATEMLDE17.dbf")
+
+```
+
